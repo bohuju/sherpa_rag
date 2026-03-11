@@ -1,0 +1,13 @@
+# DOCX Parsing and Indexing Pipeline
+
+# MCP Server
+servers:
+  corpus: servers/corpus
+  retriever: servers/retriever
+
+# MCP Client Pipeline
+pipeline:
+  - corpus.build_text_corpus
+  - retriever.retriever_init
+  - retriever.retriever_embed
+  - retriever.retriever_index
