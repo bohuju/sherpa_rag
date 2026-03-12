@@ -1,7 +1,9 @@
 from fastapi import FastAPI, UploadFile, File, Form
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from typing import Optional
 import subprocess
 import sys
 from pathlib import Path
@@ -10,6 +12,8 @@ import yaml
 import os
 import hashlib
 import aiofiles
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 app = FastAPI()
 
@@ -23,6 +27,10 @@ app.add_middleware(
 
 BASE_UPLOAD_DIR = Path("data")
 BASE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+STATIC_DIR = Path("ui/frontend")
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 ALLOWED_EXTENSIONS = {'.txt', '.pdf', '.doc', '.docx', '.md', '.json', '.csv', '.xlsx', '.xml', '.html', '.htm', '.ppt', '.pptx'}
 MAX_FILE_SIZE = 100 * 1024 * 1024
@@ -446,23 +454,31 @@ async def delete_file(file_path: str = None):
 @app.get("/pipelines")
 async def list_pipelines():
     """
-    列出可用的 pipeline 文件
+    列出可用的 pipeline 文件和参数文件
     
     请求示例:
     curl "http://localhost:8000/pipelines"
     """
     try:
-        param_dir = Path("examples/parameter")
-        
-        if not param_dir.exists():
-            return {"status": "error", "message": "参数目录不存在"}
-        
         pipelines = []
-        for yaml_file in param_dir.glob("*.yaml"):
-            pipelines.append({
-                "name": yaml_file.stem,
-                "path": str(yaml_file)
-            })
+        
+        examples_dir = Path("examples")
+        if examples_dir.exists():
+            for yaml_file in examples_dir.glob("*.yaml"):
+                pipelines.append({
+                    "name": yaml_file.stem,
+                    "path": str(yaml_file),
+                    "type": "pipeline"
+                })
+        
+        param_dir = Path("examples/parameter")
+        if param_dir.exists():
+            for yaml_file in param_dir.glob("*.yaml"):
+                pipelines.append({
+                    "name": yaml_file.stem,
+                    "path": str(yaml_file),
+                    "type": "parameter"
+                })
         
         return {
             "status": "success",
@@ -475,6 +491,43 @@ async def list_pipelines():
 class PipelineParamsUpdate(BaseModel):
     """Pipeline 参数更新请求体"""
     params: dict
+
+
+@app.get("/read-file")
+async def read_file(file_path: str):
+    """
+    读取文件内容
+    
+    请求示例:
+    curl "http://localhost:8000/read-file?file_path=examples/corpus_index.yaml"
+    """
+    try:
+        path = Path(file_path)
+        
+        if not path.exists():
+            return JSONResponse(
+                status_code=404,
+                content={"status": "error", "message": f"文件不存在: {file_path}"}
+            )
+        
+        if not path.is_file():
+            return JSONResponse(
+                status_code=400,
+                content={"status": "error", "message": f"不是有效文件: {file_path}"}
+            )
+        
+        content = path.read_text(encoding="utf-8")
+        
+        return {
+            "status": "success",
+            "file_path": file_path,
+            "content": content
+        }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": str(e)}
+        )
 
 
 @app.get("/pipeline-params")
@@ -602,10 +655,19 @@ async def run_pipeline(request: PipelineRunRequest):
                 content={"status": "error", "message": f"参数文件不存在: {parameter_file}"}
             )
         
-        result = PipelineCall(
-            pipeline_file=pipeline_file,
-            parameter_file=parameter_file
-        )
+        def run_pipeline():
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                return PipelineCall(
+                    pipeline_file=pipeline_file,
+                    parameter_file=parameter_file
+                )
+            finally:
+                loop.close()
+        
+        result = await asyncio.get_event_loop().run_in_executor(None, run_pipeline)
         
         return {
             "status": "success",
@@ -664,10 +726,19 @@ async def build_index(
             with open(parameter_file, "w", encoding="utf-8") as f:
                 yaml.safe_dump(params, f, allow_unicode=True, default_flow_style=False)
         
-        result = PipelineCall(
-            pipeline_file=pipeline_file,
-            parameter_file=parameter_file
-        )
+        def run_pipeline():
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                return PipelineCall(
+                    pipeline_file=pipeline_file,
+                    parameter_file=parameter_file
+                )
+            finally:
+                loop.close()
+        
+        result = await asyncio.get_event_loop().run_in_executor(None, run_pipeline)
         
         return {
             "status": "success",
@@ -709,10 +780,19 @@ async def query_rag(
     try:
         from ultrarag.api import PipelineCall
         
-        result = PipelineCall(
-            pipeline_file=pipeline_file,
-            parameter_file=parameter_file
-        )
+        def run_pipeline():
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                return PipelineCall(
+                    pipeline_file=pipeline_file,
+                    parameter_file=parameter_file
+                )
+            finally:
+                loop.close()
+        
+        result = await asyncio.get_event_loop().run_in_executor(None, run_pipeline)
         
         final_result = result.get("final_result", result)
         
@@ -739,6 +819,24 @@ async def health_check():
     }
 
 
+@app.get("/")
+async def root():
+    """主页"""
+    console_path = Path("ui/frontend/console.html")
+    if console_path.exists():
+        return HTMLResponse(content=console_path.read_text(encoding="utf-8"))
+    return {"message": "UltraRAG API Server", "console": "/ui/frontend/console.html"}
+
+
+@app.get("/console")
+async def console():
+    """控制台页面"""
+    console_path = Path("ui/frontend/console.html")
+    if console_path.exists():
+        return HTMLResponse(content=console_path.read_text(encoding="utf-8"))
+    return {"error": "Console not found"}
+
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=5251)

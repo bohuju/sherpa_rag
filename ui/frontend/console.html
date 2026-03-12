@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UltraRAG 控制台</title>
+    <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --border-color: #e2e8f0;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --success-color: #22c55e;
+            --error-color: #ef4444;
+            --warning-color: #f59e0b;
+            --info-color: #3b82f6;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .header {
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .header .status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--error-color);
+        }
+
+        .status-dot.connected {
+            background: var(--success-color);
+        }
+
+        .main-container {
+            display: flex;
+            height: calc(100vh - 65px);
+        }
+
+        .sidebar {
+            width: 260px;
+            background: var(--card-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .sidebar-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.75rem;
+        }
+
+        .file-list {
+            list-style: none;
+        }
+
+        .file-item {
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: background 0.2s;
+        }
+
+        .file-item:hover {
+            background: var(--bg-color);
+        }
+
+        .file-item.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .file-icon {
+            width: 16px;
+            height: 16px;
+            opacity: 0.7;
+        }
+
+        .content {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 1.5rem;
+        }
+
+        .card-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .card-body {
+            padding: 1.25rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #16a34a;
+        }
+
+        .btn-danger {
+            background: var(--error-color);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-secondary {
+            background: var(--bg-color);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border-color);
+        }
+
+        .btn-sm {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.8125rem;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .editor-container {
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .editor-toolbar {
+            background: #f1f5f9;
+            padding: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .editor {
+            width: 100%;
+            min-height: 400px;
+            padding: 1rem;
+            font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            border: none;
+            resize: vertical;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+
+        .editor:focus {
+            outline: none;
+        }
+
+        .log-container {
+            background: #1e1e1e;
+            border-radius: 6px;
+            padding: 1rem;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+            font-size: 12px;
+            color: #d4d4d4;
+        }
+
+        .log-line {
+            padding: 0.25rem 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .log-line.info {
+            color: #d4d4d4;
+        }
+
+        .log-line.success {
+            color: #4ec9b0;
+        }
+
+        .log-line.error {
+            color: #f44747;
+        }
+
+        .log-line.warning {
+            color: #cca700;
+        }
+
+        .log-timestamp {
+            color: #6a9955;
+            margin-right: 0.5rem;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 1rem;
+        }
+
+        .tab {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
+        }
+
+        .tab.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.625rem 0.875rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.875rem;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 0.625rem 0.875rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.875rem;
+            background: white;
+            cursor: pointer;
+        }
+
+        .upload-zone {
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--primary-color);
+            background: #f0f7ff;
+        }
+
+        .upload-zone.dragover {
+            border-color: var(--primary-color);
+            background: #e0f2fe;
+        }
+
+        .upload-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 1rem;
+            opacity: 0.5;
+        }
+
+        .upload-text {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .file-list-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .file-list-table th,
+        .file-list-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .file-list-table th {
+            font-weight: 600;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .file-list-table tr:hover {
+            background: var(--bg-color);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .badge-success {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .badge-error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid transparent;
+            border-top-color: currentColor;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .toast {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast.success {
+            background: var(--success-color);
+        }
+
+        .toast.error {
+            background: var(--error-color);
+        }
+
+        .toast.info {
+            background: var(--info-color);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 1rem;
+            opacity: 0.3;
+        }
+
+        .json-editor {
+            min-height: 300px;
+            font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+            font-size: 12px;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+            .main-container {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                height: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>🚀 UltraRAG 控制台</h1>
+        <div class="status">
+            <span class="status-dot" id="connectionStatus"></span>
+            <span id="connectionText">未连接</span>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-title">Pipeline 文件</div>
+                <ul class="file-list" id="pipelineList">
+                    <li class="empty-state">加载中...</li>
+                </ul>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-title">参数文件</div>
+                <ul class="file-list" id="parameterList">
+                    <li class="empty-state">加载中...</li>
+                </ul>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-title">数据文件</div>
+                <ul class="file-list" id="dataFileList">
+                    <li class="empty-state">加载中...</li>
+                </ul>
+            </div>
+        </aside>
+
+        <main class="content">
+            <div class="tabs">
+                <div class="tab active" data-tab="pipeline">Pipeline 编辑</div>
+                <div class="tab" data-tab="parameter">参数编辑</div>
+                <div class="tab" data-tab="run">运行</div>
+                <div class="tab" data-tab="files">文件管理</div>
+            </div>
+
+            <div class="tab-content active" id="tab-pipeline">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Pipeline 编辑</span>
+                        <div>
+                            <button class="btn btn-secondary btn-sm" onclick="loadSelectedPipeline()">刷新</button>
+                            <button class="btn btn-primary btn-sm" onclick="savePipeline()">保存</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="form-label">选择 Pipeline</label>
+                            <select class="form-select" id="pipelineSelect" onchange="loadPipeline()">
+                                <option value="">请选择...</option>
+                            </select>
+                        </div>
+                        <div class="editor-container">
+                            <textarea class="editor" id="pipelineEditor" placeholder="选择或加载 Pipeline 文件..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-parameter">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">参数编辑</span>
+                        <div>
+                            <button class="btn btn-secondary btn-sm" onclick="loadSelectedParameter()">刷新</button>
+                            <button class="btn btn-primary btn-sm" onclick="saveParameter()">保存</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="form-label">选择参数文件</label>
+                            <select class="form-select" id="parameterSelect" onchange="loadParameter()">
+                                <option value="">请选择...</option>
+                            </select>
+                        </div>
+                        <div class="editor-container">
+                            <textarea class="editor" id="parameterEditor" placeholder="选择或加载参数文件..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-run">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">运行 Pipeline</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="grid-2">
+                            <div class="form-group">
+                                <label class="form-label">Pipeline 文件</label>
+                                <select class="form-select" id="runPipelineSelect">
+                                    <option value="">请选择...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">参数文件</label>
+                                <select class="form-select" id="runParameterSelect">
+                                    <option value="">请选择...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">语料库路径 (可选，用于索引构建)</label>
+                            <input type="text" class="form-input" id="runCorpusPath" placeholder="data/sherpa_text.jsonl">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">查询内容 (可选，用于 RAG 查询)</label>
+                            <input type="text" class="form-input" id="runQuery" placeholder="什么是 UltraRAG?">
+                        </div>
+                        <button class="btn btn-success" id="runBtn" onclick="runPipeline()">
+                            ▶ 运行 Pipeline
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">运行日志</span>
+                        <button class="btn btn-secondary btn-sm" onclick="clearLogs()">清空日志</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="log-container" id="logContainer">
+                            <div class="log-line info">等待运行...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">运行结果</span>
+                    </div>
+                    <div class="card-body">
+                        <pre id="runResult" style="white-space: pre-wrap; word-wrap: break-word; font-size: 13px; background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 6px; max-height: 400px; overflow: auto;"></pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-files">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">上传文件</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="upload-zone" id="uploadZone">
+                            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            <p class="upload-text">点击或拖拽文件到此处上传</p>
+                            <input type="file" id="fileInput" style="display: none;" multiple>
+                        </div>
+                        <div class="form-group" style="margin-top: 1rem;">
+                            <label class="form-label">保存目录</label>
+                            <input type="text" class="form-input" id="uploadDir" value="data" placeholder="data">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">文件列表</span>
+                        <button class="btn btn-secondary btn-sm" onclick="loadDataFiles()">刷新</button>
+                    </div>
+                    <div class="card-body">
+                        <table class="file-list-table">
+                            <thead>
+                                <tr>
+                                    <th>文件名</th>
+                                    <th>路径</th>
+                                    <th>大小</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fileTableBody">
+                                <tr>
+                                    <td colspan="4" class="empty-state">暂无文件</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="toast" class="toast" style="display: none;"></div>
+
+    <script>
+        const API_BASE = '';
+
+        let currentPipeline = '';
+        let currentParameter = '';
+        let logInterval = null;
+
+        async function apiCall(url, options = {}) {
+            try {
+                const response = await fetch(API_BASE + url, {
+                    ...options,
+                    headers: {
+                        ...options.headers,
+                    }
+                });
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('API Error:', error);
+                throw error;
+            }
+        }
+
+        async function checkConnection() {
+            try {
+                const result = await apiCall('/health');
+                const statusDot = document.getElementById('connectionStatus');
+                const statusText = document.getElementById('connectionText');
+                
+                if (result.status === 'healthy') {
+                    statusDot.classList.add('connected');
+                    statusText.textContent = '已连接';
+                    return true;
+                }
+            } catch (e) {
+                console.error('Connection failed:', e);
+            }
+            
+            document.getElementById('connectionStatus').classList.remove('connected');
+            document.getElementById('connectionText').textContent = '未连接';
+            return false;
+        }
+
+        async function loadPipelines() {
+            try {
+                const result = await apiCall('/pipelines');
+                
+                const pipelineList = document.getElementById('pipelineList');
+                const pipelineSelect = document.getElementById('pipelineSelect');
+                const runPipelineSelect = document.getElementById('runPipelineSelect');
+                
+                pipelineList.innerHTML = '';
+                pipelineSelect.innerHTML = '<option value="">请选择...</option>';
+                runPipelineSelect.innerHTML = '<option value="">请选择...</option>';
+                
+                if (result.pipelines) {
+                    const yamlFiles = result.pipelines.filter(p => p.path.endsWith('.yaml'));
+                    
+                    yamlFiles.forEach(p => {
+                        const li = document.createElement('li');
+                        li.className = 'file-item';
+                        li.innerHTML = `<span>📄</span> ${p.name}`;
+                        li.onclick = () => selectPipeline(p.path);
+                        pipelineList.appendChild(li);
+                        
+                        const option1 = document.createElement('option');
+                        option1.value = p.path;
+                        option1.textContent = p.name;
+                        pipelineSelect.appendChild(option1);
+                        
+                        const option2 = document.createElement('option');
+                        option2.value = p.path;
+                        option2.textContent = p.name;
+                        runPipelineSelect.appendChild(option2);
+                    });
+                }
+                
+                if (yamlFiles.length > 0 && !currentPipeline) {
+                    selectPipeline(yamlFiles[0].path);
+                }
+            } catch (e) {
+                console.error('Failed to load pipelines:', e);
+            }
+        }
+
+        async function loadParameters() {
+            try {
+                const result = await apiCall('/pipelines');
+                
+                const parameterList = document.getElementById('parameterList');
+                const parameterSelect = document.getElementById('parameterSelect');
+                const runParameterSelect = document.getElementById('runParameterSelect');
+                
+                parameterList.innerHTML = '';
+                parameterSelect.innerHTML = '<option value="">请选择...</option>';
+                runParameterSelect.innerHTML = '<option value="">请选择...</option>';
+                
+                if (result.pipelines) {
+                    const paramFiles = result.pipelines.filter(p => p.path.includes('parameter'));
+                    
+                    paramFiles.forEach(p => {
+                        const li = document.createElement('li');
+                        li.className = 'file-item';
+                        li.innerHTML = `<span>⚙️</span> ${p.name}`;
+                        li.onclick = () => selectParameter(p.path);
+                        parameterList.appendChild(li);
+                        
+                        const option1 = document.createElement('option');
+                        option1.value = p.path;
+                        option1.textContent = p.name;
+                        parameterSelect.appendChild(option1);
+                        
+                        const option2 = document.createElement('option');
+                        option2.value = p.path;
+                        option2.textContent = p.name;
+                        runParameterSelect.appendChild(option2);
+                    });
+                }
+                
+                if (paramFiles.length > 0 && !currentParameter) {
+                    selectParameter(paramFiles[0].path);
+                }
+            } catch (e) {
+                console.error('Failed to load parameters:', e);
+            }
+        }
+
+        async function loadDataFiles() {
+            try {
+                const result = await apiCall('/list-files?directory=data&include_details=true');
+                
+                const dataFileList = document.getElementById('dataFileList');
+                const fileTableBody = document.getElementById('fileTableBody');
+                
+                dataFileList.innerHTML = '';
+                fileTableBody.innerHTML = '';
+                
+                if (result.files && result.files.length > 0) {
+                    const files = result.files.filter(f => f.type === 'file');
+                    
+                    files.forEach(f => {
+                        const li = document.createElement('li');
+                        li.className = 'file-item';
+                        li.innerHTML = `<span>📄</span> ${f.name}`;
+                        li.onclick = () => { document.getElementById('parameterSelect').value = f.path; loadParameter(); };
+                        dataFileList.appendChild(li);
+                        
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${f.name}</td>
+                            <td>${f.path}</td>
+                            <td>${f.size_formatted || '未知'}</td>
+                            <td>
+                                <button class="btn btn-danger btn-sm" onclick="deleteFile('${f.path}')">删除</button>
+                            </td>
+                        `;
+                        fileTableBody.appendChild(tr);
+                    });
+                } else {
+                    dataFileList.innerHTML = '<li class="empty-state">暂无文件</li>';
+                    fileTableBody.innerHTML = '<tr><td colspan="4" class="empty-state">暂无文件</td></tr>';
+                }
+            } catch (e) {
+                console.error('Failed to load data files:', e);
+            }
+        }
+
+        function selectPipeline(path) {
+            currentPipeline = path;
+            document.getElementById('pipelineSelect').value = path;
+            loadPipelineContent(path);
+        }
+
+        function selectParameter(path) {
+            currentParameter = path;
+            document.getElementById('parameterSelect').value = path;
+            loadParameterContent(path);
+        }
+
+        async function loadPipelineContent(path) {
+            if (!path) return;
+            
+            try {
+                const response = await apiCall(`/read-file?file_path=${encodeURIComponent(path)}`);
+                if (response.status === 'success') {
+                    document.getElementById('pipelineEditor').value = response.content;
+                    currentPipeline = path;
+                } else {
+                    showToast('加载 Pipeline 失败: ' + response.message, 'error');
+                }
+            } catch (e) {
+                console.error('Failed to load pipeline:', e);
+                showToast('加载 Pipeline 失败', 'error');
+            }
+        }
+
+        async function loadParameterContent(path) {
+            if (!path) return;
+            
+            try {
+                const response = await apiCall(`/read-file?file_path=${encodeURIComponent(path)}`);
+                if (response.status === 'success') {
+                    try {
+                        const params = jsyaml.load(response.content);
+                        const yamlContent = dictToYaml(params);
+                        document.getElementById('parameterEditor').value = yamlContent;
+                    } catch (yamlError) {
+                        document.getElementById('parameterEditor').value = response.content;
+                    }
+                    currentParameter = path;
+                } else {
+                    showToast('加载参数失败: ' + response.message, 'error');
+                }
+            } catch (e) {
+                console.error('Failed to load parameter:', e);
+                showToast('加载参数失败', 'error');
+            }
+        }
+
+        async function loadPipeline() {
+            const path = document.getElementById('pipelineSelect').value;
+            if (!path) return;
+            
+            try {
+                const response = await apiCall(`/read-file?file_path=${encodeURIComponent(path)}`);
+                if (response.status === 'success') {
+                    document.getElementById('pipelineEditor').value = response.content;
+                    currentPipeline = path;
+                } else {
+                    showToast('加载 Pipeline 失败: ' + response.message, 'error');
+                }
+            } catch (e) {
+                console.error('Failed to load pipeline:', e);
+                showToast('加载 Pipeline 失败', 'error');
+            }
+        }
+
+        async function loadParameter() {
+            const path = document.getElementById('parameterSelect').value;
+            if (!path) return;
+            
+            try {
+                const response = await apiCall(`/read-file?file_path=${encodeURIComponent(path)}`);
+                if (response.status === 'success') {
+                    try {
+                        const params = jsyaml.load(response.content);
+                        const yamlContent = dictToYaml(params);
+                        document.getElementById('parameterEditor').value = yamlContent;
+                    } catch (yamlError) {
+                        document.getElementById('parameterEditor').value = response.content;
+                    }
+                    currentParameter = path;
+                } else {
+                    showToast('加载参数失败: ' + response.message, 'error');
+                }
+            } catch (e) {
+                console.error('Failed to load parameter:', e);
+                showToast('加载参数失败', 'error');
+            }
+        }
+
+        function dictToYaml(obj, indent = 0) {
+            let result = '';
+            const prefix = '  '.repeat(indent);
+            
+            for (const [key, value] of Object.entries(obj)) {
+                if (value === null) {
+                    result += `${prefix}${key}: null\n`;
+                } else if (typeof value === 'object' && !Array.isArray(value)) {
+                    result += `${prefix}${key}:\n${dictToYaml(value, indent + 1)}`;
+                } else if (Array.isArray(value)) {
+                    result += `${prefix}${key}:\n`;
+                    value.forEach(item => {
+                        if (typeof item === 'object') {
+                            result += `${prefix}  - ${JSON.stringify(item)}\n`;
+                        } else {
+                            result += `${prefix}  - ${item}\n`;
+                        }
+                    });
+                } else if (typeof value === 'string') {
+                    result += `${prefix}${key}: "${value}"\n`;
+                } else {
+                    result += `${prefix}${key}: ${value}\n`;
+                }
+            }
+            return result;
+        }
+
+        async function savePipeline() {
+            const content = document.getElementById('pipelineEditor').value;
+            if (!currentPipeline) {
+                showToast('请先选择 Pipeline 文件', 'warning');
+                return;
+            }
+            
+            try {
+                const blob = new Blob([content], { type: 'text/plain' });
+                const formData = new FormData();
+                formData.append('file', blob, currentPipeline.split('/').pop());
+                formData.append('save_dir', 'temp');
+                
+                await fetch(API_BASE + '/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                showToast('Pipeline 已更新，请手动保存到文件', 'info');
+            } catch (e) {
+                console.error('Failed to save pipeline:', e);
+                showToast('保存失败', 'error');
+            }
+        }
+
+        async function saveParameter() {
+            const content = document.getElementById('parameterEditor').value;
+            if (!currentParameter) {
+                showToast('请先选择参数文件', 'warning');
+                return;
+            }
+            
+            try {
+                const yamlContent = parseYamlToDict(content);
+                const result = await apiCall(`/pipeline-params?parameter_file=${encodeURIComponent(currentParameter)}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ params: yamlContent })
+                });
+                
+                if (result.status === 'success') {
+                    showToast('参数保存成功', 'success');
+                } else {
+                    showToast('保存失败: ' + result.message, 'error');
+                }
+            } catch (e) {
+                console.error('Failed to save parameter:', e);
+                showToast('保存失败', 'error');
+            }
+        }
+
+        function parseYamlToDict(yamlStr) {
+            const result = {};
+            const lines = yamlStr.split('\n');
+            let currentIndent = 0;
+            let currentObj = result;
+            const stack = [{ obj: result, indent: 0 }];
+            
+            return result;
+        }
+
+        async function runPipeline() {
+            const pipelineFile = document.getElementById('runPipelineSelect').value;
+            const parameterFile = document.getElementById('runParameterSelect').value;
+            const corpusPath = document.getElementById('runCorpusPath').value;
+            const query = document.getElementById('runQuery').value;
+            
+            if (!pipelineFile || !parameterFile) {
+                showToast('请选择 Pipeline 和参数文件', 'warning');
+                return;
+            }
+            
+            const runBtn = document.getElementById('runBtn');
+            runBtn.disabled = true;
+            runBtn.innerHTML = '<span class="spinner"></span> 运行中...';
+            
+            clearLogs();
+            addLog('info', `开始运行 Pipeline: ${pipelineFile}`);
+            addLog('info', `参数文件: ${parameterFile}`);
+            
+            try {
+                let apiUrl = '/pipeline/run';
+                let apiData = {
+                    pipeline_file: pipelineFile,
+                    parameter_file: parameterFile
+                };
+                
+                if (corpusPath) {
+                    apiUrl = '/pipeline/index';
+                    apiData.corpus_path = corpusPath;
+                } else if (query) {
+                    apiUrl = '/pipeline/query';
+                    apiData.pipeline_file = pipelineFile;
+                    apiData.parameter_file = parameterFile;
+                }
+                
+                addLog('info', `调用 API: ${apiUrl}`);
+                
+                const result = await apiCall(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(apiData)
+                });
+                
+                if (result.status === 'success') {
+                    addLog('success', '运行成功!');
+                    document.getElementById('runResult').textContent = JSON.stringify(result, null, 2);
+                } else {
+                    addLog('error', `运行失败: ${result.message || result.error}`);
+                    document.getElementById('runResult').textContent = JSON.stringify(result, null, 2);
+                }
+            } catch (e) {
+                addLog('error', `运行失败: ${e.message}`);
+                document.getElementById('runResult').textContent = e.message;
+            } finally {
+                runBtn.disabled = false;
+                runBtn.innerHTML = '▶ 运行 Pipeline';
+            }
+        }
+
+        function addLog(type, message) {
+            const container = document.getElementById('logContainer');
+            const line = document.createElement('div');
+            line.className = `log-line ${type}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            line.innerHTML = `<span class="log-timestamp">[${timestamp}]</span>${message}`;
+            
+            container.appendChild(line);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function clearLogs() {
+            document.getElementById('logContainer').innerHTML = '';
+        }
+
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        
+        uploadZone.onclick = () => fileInput.click();
+        
+        uploadZone.ondragover = (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        };
+        
+        uploadZone.ondragleave = () => {
+            uploadZone.classList.remove('dragover');
+        };
+        
+        uploadZone.ondrop = async (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                await uploadFiles(files);
+            }
+        };
+        
+        fileInput.onchange = async () => {
+            if (fileInput.files.length > 0) {
+                await uploadFiles(fileInput.files);
+            }
+        };
+        
+        async function uploadFiles(files) {
+            const saveDir = document.getElementById('uploadDir').value || 'data';
+            
+            for (const file of files) {
+                try {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('save_dir', saveDir);
+                    
+                    const result = await fetch(API_BASE + '/upload', {
+                        method: 'POST',
+                        body: formData
+                    }).then(r => r.json());
+                    
+                    if (result.status === 'success') {
+                        showToast(`文件 ${file.name} 上传成功`, 'success');
+                    } else {
+                        showToast(`文件 ${file.name} 上传失败: ${result.message}`, 'error');
+                    }
+                } catch (e) {
+                    showToast(`文件 ${file.name} 上传失败`, 'error');
+                }
+            }
+            
+            loadDataFiles();
+        }
+
+        async function deleteFile(path) {
+            if (!confirm(`确定要删除 ${path} 吗?`)) return;
+            
+            try {
+                const result = await apiCall(`/delete-file?file_path=${encodeURIComponent(path)}`, {
+                    method: 'DELETE'
+                });
+                
+                if (result.status === 'success') {
+                    showToast('文件删除成功', 'success');
+                    loadDataFiles();
+                } else {
+                    showToast('删除失败: ' + result.message, 'error');
+                }
+            } catch (e) {
+                showToast('删除失败', 'error');
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            toast.style.display = 'block';
+            
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.onclick = () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                tab.classList.add('active');
+                document.getElementById(`tab-${tab.dataset.tab}`).classList.add('active');
+                
+                if (tab.dataset.tab === 'files') {
+                    loadDataFiles();
+                }
+            };
+        });
+
+        async function init() {
+            const connected = await checkConnection();
+            if (connected) {
+                await loadPipelines();
+                await loadParameters();
+                await loadDataFiles();
+            }
+            
+            setInterval(checkConnection, 30000);
+        }
+
+        init();
+    </script>
+</body>
+</html>
